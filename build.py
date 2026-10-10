@@ -61,7 +61,7 @@ if SLEEP and pathlib.Path(SLEEP).exists():
 tpl = (here / "template.html").read_text(encoding="utf-8")
 out = (tpl.replace("__MAIN_PAGE__", json.dumps(main, ensure_ascii=False))
           .replace("__CORE_PAGE__", json.dumps(core, ensure_ascii=False))
-          .replace("__SLEEP_JPG__", json.dumps(sleep_uri))
+          
           .replace("__VER__", ver).replace("__FW__", fw))
 (here / "index.html").write_text(out, encoding="utf-8")
 print("index.html", len(out))

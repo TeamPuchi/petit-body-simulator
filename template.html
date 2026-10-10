@@ -87,6 +87,7 @@ a{color:var(--accent)}
     <div class="row"><label>color</label><input type="text" id="hexIn" value="034f45" maxlength="7"><button id="hexBtn">顔の色</button>
       <label>bg</label><span id="bgBtns"></span></div>
     <div class="row"><label>sleep / wake</label><button id="sleepBtn">sleep</button><button id="wakeBtn">wake</button>
+      <label>おやすみの顔</label><select id="sleepSel"><option value="slant">すやすや</option><option value="line">すっと</option><option value="down">ぐっすり</option><option value="up">にこにこ</option></select><span class="small">（きせかえアプリの s=。コア設定で貼ったものが入ります）</span>
       <label>snapshot</label><button id="snapBtn">写真（CAM）</button><label>sensors</label><button id="sensBtn">読む（SEN）</button><button id="micBtn">聞く（MIC）</button></div>
     <div class="row"><label>volume</label><span id="volBtns"></span><label>brightness</label><span id="brBtns"></span></div>
     <div class="row"><label>つながり</label><select id="connSel"><option value="0">ok</option><option value="1">NO CLOUD（Wi-Fi はある）</option><option value="2">NO WIFI</option></select>
@@ -120,12 +121,12 @@ const T = {tapMaxMs:300, tapMovePx:20, strokeDx:60, swipeUpStartY:220, swipeDy:6
   lookReturn:5000, tapMouth:30, tapColorMs:600, swayX:5, swayY:4, panelTimeout:20000, setupTimeout:300000, sleepBrightness:15};
 const VOL = [0,30,70], VOL_L = ["OFF","ちいさい","おおきい"], BR = [40,120,255], BR_L = ["くらい","ふつう","あかるい"];
 const BGS = [["f3ead8","きなり"],["fbf4e8","くりーむ"],["223a70","こん"],["2b2b2b","くろ"],["ffffff","しろ"]];
-const MAIN_PAGE = __MAIN_PAGE__, CORE_PAGE = __CORE_PAGE__, SLEEP_JPG = __SLEEP_JPG__;
+const MAIN_PAGE = __MAIN_PAGE__, CORE_PAGE = __CORE_PAGE__;
 
 // ---------- 状態 ----------
 const S = {
   mode:"boot", bootAt:0, holdStart:0, holdDone:false, setupAt:0, savedAt:0,
-  name:"ぷちまる", faceHex:"034f45", bgHex:"ffffff", tapColor:"", kisekae:"",
+  name:"ぷちまる", faceHex:"034f45", bgHex:"ffffff", tapColor:"", kisekae:"#c=034f45&e=now&m=heart&s=slant&g=none",
   volume:70, brightness:120, quiet:false, conn:0, battery:82, charging:false,
   people:["さとおやさん","さくら","りく"], selected:0,
   // 顔
@@ -142,7 +143,6 @@ const now = () => performance.now();
 const F12 = '12px "Zen Maru Gothic","Noto Sans JP",sans-serif', F24 = '500 24px "Zen Maru Gothic","Noto Sans JP",sans-serif', F40 = '700 40px "Zen Maru Gothic","Noto Sans JP",sans-serif', FMONO = '10px ui-monospace,Menlo,monospace', FMONO2 = '18px ui-monospace,Menlo,monospace';
 const hex = h => "#" + h.replace("#","");
 const accentOf = h => { const c = parseInt(h,16); return `rgb(${((c>>16&255)+255)>>1},${((c>>8&255)+255)>>1},${((c&255)+255)>>1})`; };
-let sleepImg = null; if (SLEEP_JPG) { sleepImg = new Image(); sleepImg.src = SLEEP_JPG; }
 
 // ---------- ログ ----------
 const logEl = document.getElementById("log");
@@ -295,7 +295,22 @@ function drawSetup(t) {
   ctx.font = F24; ctx.textAlign = "center"; ctx.fillText("5分で戻る・3回タップで戻る", 160, 212);
 }
 function drawSaved() { ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H); ctx.fillStyle = "#000"; ctx.font = F24; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("保存したよ。再起動します", 160, 100); }
-function drawSleep() { ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H); if (sleepImg && sleepImg.complete) ctx.drawImage(sleepImg, 0, 0, W, H); else { ctx.fillStyle = "#bcbcbc"; ctx.font = F40; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("zzz", 160, 120); } }
+function sleepStyle() { const m = /(?:^|[#&])s=([a-z]+)/.exec(S.kisekae || ""); return m && ["slant","line","down","up"].includes(m[1]) ? m[1] : "slant"; }
+function drawSleep() {
+  // face.cpp drawSleepFace(): 灰色 #bcbcbc、閉じた目 4 種、鼻、ハート口、zz(きせかえアプリと同じ形)
+  const c = "#bcbcbc"; ctx.fillStyle = hex(S.bgHex); ctx.fillRect(0,0,W,H);
+  ellipse(160, 121, 14, 6, 0, c);
+  ctx.strokeStyle = c; ctx.lineWidth = 9; ctx.lineCap = "round"; const st = sleepStyle();
+  for (const side of [-1, 1]) { const x = 160 + side*85, y = 90, w = 44; ctx.beginPath();
+    if (st === "line") { ctx.moveTo(x-w/2, y); ctx.lineTo(x+w/2, y); }
+    else if (st === "down") { ctx.moveTo(x-w/2, y-4); ctx.quadraticCurveTo(x, y+w*0.45, x+w/2, y-4); }
+    else if (st === "up") { ctx.moveTo(x-w/2, y+6); ctx.quadraticCurveTo(x, y-w*0.5, x+w/2, y+6); }
+    else { const dy = w*0.32; ctx.moveTo(x-w/2, y + (side<0?dy:-dy)); ctx.lineTo(x+w/2, y + (side<0?-dy:dy)); }
+    ctx.stroke(); }
+  const my = 165; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(142,my,20,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(178,my,20,0,7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(130,my+10); ctx.lineTo(190,my+10); ctx.lineTo(160,my+45); ctx.closePath(); ctx.fill();
+  ctx.lineWidth = 7; ctx.lineJoin = "round"; for (const [x,y,sz] of [[118,46,18],[148,26,22]]) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+sz,y); ctx.lineTo(x,y+sz); ctx.lineTo(x+sz,y+sz); ctx.stroke(); }
+}
 
 function reboot(reason) {
   S.mode = "boot"; S.bootAt = now(); S.holdDone = false; S.panel = false; S.sleeping = false; S.press = null; S.taps = []; S.setupTaps = [];
@@ -332,7 +347,7 @@ function loadPage(page) {
         const nm = (fd.get("display_name") || "").trim(); if (nm) S.name = nm.slice(0,12);
         const fc = (fd.get("face_color") || "").replace("#",""); if (/^[0-9a-fA-F]{6}$/.test(fc)) S.faceHex = fc.toLowerCase();
         const bg = (fd.get("bg_color") || "").replace("#",""); if (BGS.some(b => b[0] === bg)) S.bgHex = bg;
-        S.kisekae = fd.get("kisekae") || S.kisekae;
+        S.kisekae = fd.get("kisekae") || S.kisekae; document.getElementById("sleepSel").value = sleepStyle();
         leaveSetup(true, "ぷちのコア設定を保存");
       } else {
         const ppl = []; for (let i=1;i<=6;i++) { const v = (fd.get(`person${i}`) || "").trim(); if (v) ppl.push(v.slice(0,6)); }
@@ -401,6 +416,7 @@ document.querySelectorAll("[data-blink]").forEach(b => b.onclick = () => { const
 document.querySelectorAll("[data-icon]").forEach(b => b.onclick = () => { log("cmd","icon",{name:b.dataset.icon}); icon(b.dataset.icon); });
 $("#hexBtn").onclick = () => { const h = $("#hexIn").value.replace("#","").toLowerCase(); if (/^[0-9a-f]{6}$/.test(h)) { S.faceHex = h; log("cmd","color",{hex:h}); } };
 BGS.forEach(([h,n]) => { const b = document.createElement("button"); b.className = "swatch"; b.title = n; b.style.background = "#"+h; b.onclick = () => { S.bgHex = h; log("cmd","color",{bg:h}); }; $("#bgBtns").appendChild(b); });
+$("#sleepSel").onchange = e => { S.kisekae = (S.kisekae || "#").replace(/([#&])s=[a-z]+/, "$1s=" + e.target.value); if (!/s=/.test(S.kisekae)) S.kisekae += "&s=" + e.target.value; };
 $("#sleepBtn").onclick = () => { log("cmd","sleep"); S.sleeping = true; S.panel = false; };
 $("#wakeBtn").onclick = () => { log("cmd","wake"); S.sleeping = false; };
 $("#snapBtn").onclick = () => { log("cmd","snapshot"); S.camUntil = now() + 3000; setTimeout(() => sendEvent("snapshot", withWho({ok:true, bytes:18234})), 1800); };

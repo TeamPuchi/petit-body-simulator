@@ -28,4 +28,5 @@ python3 build.py <m5-petit-firmware>/firmware/m5_petit_cloud [sleep.jpg]
 
 - 字体は Google Fonts の丸ゴシックで代用（実機は lgfxJapanGothic 12 / 24 / 40）
 - 音は鳴りません
+- おやすみの顔は機体と同じく描いたもの(きせかえアプリの s=)
 - QR の中身は見本。実機では機体ごとの SoftAP の名前が入ります
