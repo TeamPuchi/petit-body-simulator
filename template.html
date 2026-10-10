@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="1.0.0">
 <title>Petit Body Simulator</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -107,6 +108,7 @@ a{color:var(--accent)}
     <h2>ぷちが送る event <span class="tag">体 → クラウド</span> <button id="clearLog" style="float:right">消す</button></h2>
     <div id="log" class="log"></div>
   </div>
+  <p class="small" id="verLine"></p>
   <p class="small">右上の文字: <b>NO WIFI</b>／<b>NO CLOUD</b>／<b>CAM</b>（写真を撮っている）／<b>MIC</b>（聞いている）／<b>SEN</b>（センサーを読んで送っている）／<b>ASK CAM</b>・<b>ASK SEN</b>（おねがいを押した直後、クラウドが動くまで 8 秒）。いまの機体は MIC を出す場面がまだありません。</p>
 </div>
 </div>
@@ -114,6 +116,8 @@ a{color:var(--accent)}
 
 <script>
 // ---------- ファームの数値 ----------
+// シミュレータの版。上げるときは <meta name="version"> と両方を直す。main に入ると CI が同じ名前のタグと Release を作る
+const SIM_VERSION = "1.0.0";
 const FW = "__FW__", VER = "__VER__";
 const W = 320, H = 240;
 const T = {tapMaxMs:300, tapMovePx:20, strokeDx:60, swipeUpStartY:220, swipeDy:60, swipeDownStartY:20,
@@ -434,6 +438,7 @@ document.querySelectorAll("[data-sens]").forEach(b => b.onclick = () => { const 
 $("#rebootBtn").onclick = () => reboot("電源を入れ直した");
 $("#clearLog").onclick = () => { logEl.textContent = ""; };
 
+document.getElementById("verLine").textContent = `Petit Body Simulator v${SIM_VERSION} ／ ファーム ${FW}・設定ページ Ver${VER} のコードから`;
 reboot();
 requestAnimationFrame(frame);
 </script>

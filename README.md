@@ -24,6 +24,10 @@ python3 build.py <m5-petit-firmware>/firmware/m5_petit_cloud [sleep.jpg]
 
 `template.html` が本体、`index.html` が生成物（GitHub Pages が配るもの）。ファームを直したら build し直してコミットします。
 
+## 版
+
+`template.html` の `<meta name="version">` と `SIM_VERSION`(同じ値)。上げて `build.py` → main に入ると CI がタグ `vX.Y.Z` と Release を作る(kisekae と同じ仕組み)。ページの下に版が出る。
+
 ## 実機との違い
 
 - 字体は Google Fonts の丸ゴシックで代用（実機は lgfxJapanGothic 12 / 24 / 40）
