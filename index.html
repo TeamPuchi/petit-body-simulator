@@ -106,7 +106,7 @@ a{color:var(--accent)}
     <h2>ぷちが送る event <span class="tag">体 → クラウド</span> <button id="clearLog" style="float:right">消す</button></h2>
     <div id="log" class="log"></div>
   </div>
-  <p class="small">右上の文字: <b>NO WIFI</b>／<b>NO CLOUD</b>／<b>CAM</b>（写真を撮っている）／<b>MIC</b>（聞いている）／<b>SEN</b>（センサーを読んで送っている）。いまの機体は MIC を出す場面がまだありません。</p>
+  <p class="small">右上の文字: <b>NO WIFI</b>／<b>NO CLOUD</b>／<b>CAM</b>（写真を撮っている）／<b>MIC</b>（聞いている）／<b>SEN</b>（センサーを読んで送っている）／<b>ASK CAM</b>・<b>ASK SEN</b>（おねがいを押した直後、クラウドが動くまで 8 秒）。いまの機体は MIC を出す場面がまだありません。</p>
 </div>
 </div>
 </div>
@@ -130,7 +130,7 @@ const S = {
   people:["さとおやさん","さくら","りく"], selected:0,
   // 顔
   eyeT:{x:0,y:0,m:0}, eye:{x:0,y:0,m:0}, returnAt:0, blinkAt:0, blinkStart:0, blinking:false, wink:{l:0,r:0}, icon:"", iconAt:0,
-  override:"", overrideUntil:0, camUntil:0, micUntil:0, senUntil:0, sleeping:false, pickupResetAt:0,
+  override:"", overrideUntil:0, camUntil:0, micUntil:0, senUntil:0, askLabel:"", askUntil:0, sleeping:false, pickupResetAt:0,
   // パネル
   panel:false, page:0, lastAction:0, askUntil:0, tapBurst:0, lastTap:0, lastOnVol:2,
   // 入力
@@ -191,7 +191,8 @@ function drawFace(t) {
   // 右上の文字
   const labels = []; if (S.conn === 2) labels.push("NO WIFI"); else if (S.conn === 1) labels.push("NO CLOUD");
   if (t < S.camUntil) labels.push("CAM"); if (t < S.micUntil) labels.push("MIC"); if (t < S.senUntil) labels.push("SEN");
-  if (labels.length) { ctx.font = F12; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillStyle = "#808080"; ctx.fillText(labels.join("  "), W-6, 6); }
+  if (t < S.askUntil && !(t < S.camUntil) && !(t < S.senUntil)) labels.push(S.askLabel);
+  if (labels.length) { ctx.font = '16px Arial, Helvetica, sans-serif'; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillStyle = "#808080"; ctx.fillText(labels.join("  "), W-6, 5); }
 }
 
 // ---------- パネル ----------
@@ -245,7 +246,7 @@ function panelTouchEnd(p, lx, ly) {
   if (hasWho() && S.page === 0 && dx <= -60) { S.page = 1; S.lastAction = t; return; }
   if (S.page === 1 && dx >= 60) { S.page = 0; S.lastAction = t; return; }
   if (S.page === 2) {
-    for (let i=0;i<2;i++) { const x = 8 + i*156; if (p.x >= x && p.x < x+148 && p.y >= 56 && p.y < 128) { const what = i ? "feel" : "look"; closePanel(); sendEvent("ask", withWho({what}));
+    for (let i=0;i<2;i++) { const x = 8 + i*156; if (p.x >= x && p.x < x+148 && p.y >= 56 && p.y < 128) { const what = i ? "feel" : "look"; closePanel(); sendEvent("ask", withWho({what})); S.askLabel = what === "feel" ? "ASK SEN" : "ASK CAM"; S.askUntil = t + 8000;
       // クラウド側が受けて動く様子(見本): look → 写真(CAM)、feel → センサー(SEN)
       setTimeout(() => { if (what === "look") { S.camUntil = now() + 3000; log("cmd","snapshot"); } else { S.senUntil = now() + 1500; log("cmd","sensors"); } }, 900); return; } }
     burst(); return;
