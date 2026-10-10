@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Petit Body Simulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#f6f3ea;--fg:#2d2824;--sub:#6e655c;--card:#fff;--line:#e2dbcb;--accent:#b2452b;--soft:#efe9da;
+  --font-body:"Noto Sans JP",system-ui,sans-serif;--font-head:"Zen Maru Gothic","Noto Sans JP",sans-serif}
+@media (prefers-color-scheme: dark){:root{--bg:#1d1b18;--fg:#efe9df;--sub:#b3aa9c;--card:#2a2622;--line:#3d3730;--accent:#e8876c;--soft:#33302a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.5;padding:20px 16px 48px}
+h1{font-family:var(--font-head);font-size:1.5rem;margin:0 0 2px}
+h2{font-family:var(--font-head);font-size:1.05rem;margin:0 0 8px}
+p.lead{color:var(--sub);margin:0 0 16px;font-size:.92rem}
+.wrap{max-width:1180px;margin:0 auto}
+.cols{display:grid;grid-template-columns:minmax(0,660px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.device{background:#262626;border-radius:22px;padding:18px 18px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25);width:100%;max-width:676px}
+canvas#lcd{display:block;width:100%;aspect-ratio:4/3;background:#000;border-radius:6px;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+.devfoot{display:flex;justify-content:space-between;align-items:center;color:#aaa;font-size:.78rem;margin-top:10px;gap:8px;flex-wrap:wrap}
+.devfoot b{color:#eee;font-weight:500}
+.hint{font-size:.85rem;color:var(--sub);margin:10px 0 0}
+.hint ul{margin:4px 0 0;padding-left:1.2em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.row label{font-size:.82rem;color:var(--sub);margin-right:4px}
+button,select,input[type=text]{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--soft);color:var(--fg);border-radius:8px;padding:5px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+input[type=text]{cursor:text;width:8em}
+input[type=range]{width:120px}
+textarea{font:inherit;font-size:.85rem;width:100%;min-height:72px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--fg);padding:6px}
+.swatch{width:26px;height:26px;border-radius:6px;border:1px solid rgba(0,0,0,.2);padding:0}
+.phone{width:100%;max-width:390px;height:640px;border:0;border-radius:18px;box-shadow:0 0 0 6px #2a2a2a;background:#FBF4E8;display:block}
+#phoneWrap{display:none}
+#phoneWrap.show{display:block}
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.76rem;background:#15181c;color:#d8dde3;border-radius:8px;padding:10px;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.log .ev{color:#9be29b}.log .cmd{color:#8fc5ff}.log .sys{color:#9a9a9a}
+.small{font-size:.8rem;color:var(--sub)}
+.tag{display:inline-block;font-size:.72rem;background:var(--soft);border-radius:999px;padding:1px 8px;color:var(--sub);margin-left:6px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Petit Body Simulator</h1>
+<p class="lead">ぷちの体（M5Stack CoreS3）の画面と、タップ・なぞる・長押しの動きを、ブラウザで試すもの。ファーム <b>m5_petit_cloud cloud-0.1.0</b> ／ 設定ページ <b>Ver1.0</b> の数値どおりに描いています。実機の撮影ではありません。</p>
+
+<div class="cols">
+<div>
+  <div class="device">
+    <canvas id="lcd" width="640" height="480"></canvas>
+    <div class="devfoot">
+      <span>いま: <b id="modeLabel">起動中</b></span>
+      <span>長押し <select id="holdSel"><option value="10000">10 秒（実機）</option><option value="3000" selected>3 秒（お試し）</option></select></span>
+      <button id="rebootBtn">電源を入れ直す</button>
+    </div>
+  </div>
+  <div class="hint">
+    <b>さわり方</b>（マウスでも指でも）
+    <ul>
+      <li>起動中に画面を<b>長押し</b> → 数字が 0 になったら離す → 設定モード（QR）。右に「スマホ」が出ます</li>
+      <li>いつもの顔: <b>タップ</b>＝その方を見る／<b>横になぞる</b>＝なでる（ハート）／<b>1 秒に 3 回以上タップ</b>＝こちょこちょ（まばたき）</li>
+      <li><b>下端から上へ</b>なぞる → おと・ひかり・ながもち → さらに上へ → いま だれ → さらに上へ → ぷちに おねがい → さらに上へ → 顔</li>
+      <li><b>上端から下へ</b>なぞる → ぷちに おねがい（直行）。各ページで下へなぞると前へ、おと画面で下へ → 顔</li>
+      <li>何もないところを <b>3 回タップ</b> → 顔に戻る。20 秒さわらないと閉じる。おやすみ中は 3 回タップで起きる</li>
+    </ul>
+  </div>
+</div>
+
+<div>
+  <div id="phoneWrap" class="card">
+    <h2>スマホ <span class="tag">QR を読んで http://192.168.4.1/ を開いたところ</span></h2>
+    <iframe id="phone" class="phone" title="ぷち設定ページ"></iframe>
+  </div>
+
+  <div class="card">
+    <h2>クラウドから（cmd）<span class="tag">ぷちの頭脳が体に送るもの</span></h2>
+    <div class="row"><label>look</label>
+      <button data-look="-100,0">左</button><button data-look="100,0">右</button><button data-look="0,-100">上</button><button data-look="0,100">下</button><button data-look="0,0">正面</button>
+      <label>口</label><input type="range" id="mouthR" min="0" max="100" value="0"></div>
+    <div class="row"><label>blink</label><button data-blink="1,1">両目</button><button data-blink="1,0">左</button><button data-blink="0,1">右</button>
+      <label>icon</label><button data-icon="love">love</button><button data-icon="cry">cry</button></div>
+    <div class="row"><label>color</label><input type="text" id="hexIn" value="034f45" maxlength="7"><button id="hexBtn">顔の色</button>
+      <label>bg</label><span id="bgBtns"></span></div>
+    <div class="row"><label>sleep / wake</label><button id="sleepBtn">sleep</button><button id="wakeBtn">wake</button>
+      <label>snapshot</label><button id="snapBtn">写真（CAM）</button><label>sensors</label><button id="sensBtn">読む（SEN）</button><button id="micBtn">聞く（MIC）</button></div>
+    <div class="row"><label>volume</label><span id="volBtns"></span><label>brightness</label><span id="brBtns"></span></div>
+    <div class="row"><label>つながり</label><select id="connSel"><option value="0">ok</option><option value="1">NO CLOUD（Wi-Fi はある）</option><option value="2">NO WIFI</option></select>
+      <label>電池</label><input type="range" id="battR" min="0" max="100" value="82"><label><input type="checkbox" id="chgChk"> 充電中</label></div>
+    <div class="row" style="align-items:flex-start"><label>people</label><textarea id="peopleTa" placeholder="1 行に 1 人（6 文字まで）。空なら「いま だれ」のページは出ません">さとおやさん
+さくら
+りく</textarea></div>
+    <div class="row"><button id="peopleBtn">people を送る</button><span class="small">cmd <code>people</code>。保存して再起動したときも設定ページの「だれ」から入ります</span></div>
+  </div>
+
+  <div class="card">
+    <h2>体のセンサーの出来事 <span class="tag">IMU・近接</span></h2>
+    <div class="row"><button data-sens="pickup">pickup（持ち上げ）</button><button data-sens="shake">shake（ふる）</button><button data-sens="carry">carry（持ち歩き）</button><button data-sens="putdown">putdown（置く）</button><button data-sens="pet">pet（なでる）</button><button data-sens="near">near（近づく）</button></div>
+  </div>
+
+  <div class="card">
+    <h2>ぷちが送る event <span class="tag">体 → クラウド</span> <button id="clearLog" style="float:right">消す</button></h2>
+    <div id="log" class="log"></div>
+  </div>
+  <p class="small">右上の文字: <b>NO WIFI</b>／<b>NO CLOUD</b>／<b>CAM</b>（写真を撮っている）／<b>MIC</b>（聞いている）／<b>SEN</b>（センサーを読んで送っている）。いまの機体は MIC を出す場面がまだありません。</p>
+</div>
+</div>
+</div>
+
+<script>
+// ---------- ファームの数値 ----------
+const FW = "cloud-0.1.0", VER = "1.0";
+const W = 320, H = 240;
+const T = {tapMaxMs:300, tapMovePx:20, strokeDx:60, swipeUpStartY:220, swipeDy:60, swipeDownStartY:20,
+  rapidWindow:1000, rapidN:3, touchGap:1000, blinkMin:2000, blinkMax:6000, blinkClose:250, winkMs:800, iconMs:3000,
+  lookReturn:5000, tapMouth:30, tapColorMs:600, swayX:5, swayY:4, panelTimeout:20000, setupTimeout:300000, sleepBrightness:15};
+const VOL = [0,30,70], VOL_L = ["OFF","ちいさい","おおきい"], BR = [40,120,255], BR_L = ["くらい","ふつう","あかるい"];
+const BGS = [["f3ead8","きなり"],["fbf4e8","くりーむ"],["223a70","こん"],["2b2b2b","くろ"],["ffffff","しろ"]];
+const MAIN_PAGE = "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>ぷち設定ページ Ver1.0</title><style>:root{--bg:#FBF4E8;--fg:#3A322D;--accent:#E0674C}*{box-sizing:border-box}body{font-family:\"M PLUS Rounded 1c\",\"Hiragino Maru Gothic ProN\",\"BIZ UDPGothic\",\"Yu Gothic UI\",sans-serif;max-width:480px;margin:0 auto;padding:20px 16px 48px;line-height:1.6;background:var(--bg);color:var(--fg)}.logo{font-size:0.85rem;opacity:0.65;margin-bottom:2px}h1{font-size:1.4rem;margin:0 0 20px;color:var(--accent)}h2{font-size:1.05rem;margin:1.8em 0 0.5em;color:var(--accent)}.hint{font-size:0.82rem;opacity:0.75;margin:4px 0 10px}input[type=text],input[type=password]{font-size:18px;height:48px;padding:0 14px;border-radius:12px;border:1px solid #ddd0bf;background:#fff;color:var(--fg);width:100%;margin:6px 0}.wifi-row{background:#fff;border-radius:12px;padding:12px;margin:8px 0;display:flex;flex-direction:column;gap:8px;border:1px solid #eee1cf}.wifi-row input{margin:0}.wifi-label{font-size:0.85rem;opacity:0.8;font-weight:bold}.swatches{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.swatches button{width:42px;height:42px;border-radius:12px;border:2px solid #fff;box-shadow:0 0 0 1px #ddd0bf;padding:0}input[type=color]{width:56px;height:48px;padding:2px;border-radius:12px;border:1px solid #ddd0bf;flex:none}.swatches button.sel{box-shadow:0 0 0 3px var(--accent)}.colorrow{display:flex;gap:8px;align-items:center;margin:6px 0}.colorrow input[type=text]{margin:0}button.save{font-size:1.2rem;padding:16px;border-radius:12px;border:none;background:var(--accent);color:#fff;width:100%;margin-top:28px}.err{background:#fbe2dc;border:1px solid var(--accent);color:var(--fg);padding:10px 14px;border-radius:12px;margin:10px 0}.info{background:#e6f1e3;border:1px solid #8fb58a;color:var(--fg);padding:10px 14px;border-radius:12px;margin:10px 0}a.linkbtn.cancel{background:transparent;color:#7a6a63;border:1px solid #d9cdbf;margin-top:8px}a.linkbtn{display:block;text-align:center;font-size:1.05rem;padding:14px;border-radius:12px;border:2px solid var(--accent);color:var(--accent);text-decoration:none;margin:8px 0 24px;background:#fff}</style></head><body><div class=\"logo\">日々に、ぷちを。</div><h1>ぷち設定ページ Ver1.0</h1><p class=\"hint\">機体 cloud-0.1.0</p><form method=\"POST\" action=\"/save\" id=\"mainForm\"><datalist id=\"ssids\"><option value=\"my-home-wifi\"><option value=\"cafe-free\"></datalist><h2>Wi-Fi</h2><p class=\"hint\">1つ目は必ず入れてください（順番につなぎます）</p><div class=\"wifi-row\"><div class=\"wifi-label\">Wi-Fi 1</div><input type=\"text\" name=\"wifi1_ssid\" list=\"ssids\" value=\"my-home-wifi\" required placeholder=\"Wi-Fi の名前\"><input type=\"password\" name=\"wifi1_pass\" placeholder=\"保存済み（変えるときだけ入力）\" autocomplete=\"off\"></div><div class=\"wifi-row\"><div class=\"wifi-label\">Wi-Fi 2</div><input type=\"text\" name=\"wifi2_ssid\" list=\"ssids\" value=\"\" placeholder=\"Wi-Fi の名前\"><input type=\"password\" name=\"wifi2_pass\" placeholder=\"パスワード\" autocomplete=\"off\"></div><div class=\"wifi-row\"><div class=\"wifi-label\">Wi-Fi 3</div><input type=\"text\" name=\"wifi3_ssid\" list=\"ssids\" value=\"\" placeholder=\"Wi-Fi の名前\"><input type=\"password\" name=\"wifi3_pass\" placeholder=\"パスワード\" autocomplete=\"off\"></div><h2>だれ（家族）</h2><p class=\"hint\">1番目は、ぷちを迎えた人</p><input type=\"text\" name=\"person1\" maxlength=\"6\" value=\"\" placeholder=\"ニックネーム（6文字まで）\"><input type=\"text\" name=\"person2\" maxlength=\"6\" value=\"\" placeholder=\"ニックネーム（6文字まで）\"><input type=\"text\" name=\"person3\" maxlength=\"6\" value=\"\" placeholder=\"ニックネーム（6文字まで）\"><input type=\"text\" name=\"person4\" maxlength=\"6\" value=\"\" placeholder=\"ニックネーム（6文字まで）\"><input type=\"text\" name=\"person5\" maxlength=\"6\" value=\"\" placeholder=\"ニックネーム（6文字まで）\"><input type=\"text\" name=\"person6\" maxlength=\"6\" value=\"\" placeholder=\"ニックネーム（6文字まで）\"></form><h2>ぷちのコア設定</h2><p class=\"hint\">名前・顔の色・背景の色・きせかえ。ぷちを迎えたときに決めるもの</p><a class=\"linkbtn\" href=\"/core\">ぷちのコア設定を開く</a><button type=\"submit\" form=\"mainForm\" class=\"save\">保存して再起動</button><a class=\"linkbtn cancel\" href=\"/cancel\">保存せずに戻る</a></body></html>", CORE_PAGE = "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>ぷち設定ページ Ver1.0</title><style>:root{--bg:#FBF4E8;--fg:#3A322D;--accent:#E0674C}*{box-sizing:border-box}body{font-family:\"M PLUS Rounded 1c\",\"Hiragino Maru Gothic ProN\",\"BIZ UDPGothic\",\"Yu Gothic UI\",sans-serif;max-width:480px;margin:0 auto;padding:20px 16px 48px;line-height:1.6;background:var(--bg);color:var(--fg)}.logo{font-size:0.85rem;opacity:0.65;margin-bottom:2px}h1{font-size:1.4rem;margin:0 0 20px;color:var(--accent)}h2{font-size:1.05rem;margin:1.8em 0 0.5em;color:var(--accent)}.hint{font-size:0.82rem;opacity:0.75;margin:4px 0 10px}input[type=text],input[type=password]{font-size:18px;height:48px;padding:0 14px;border-radius:12px;border:1px solid #ddd0bf;background:#fff;color:var(--fg);width:100%;margin:6px 0}.wifi-row{background:#fff;border-radius:12px;padding:12px;margin:8px 0;display:flex;flex-direction:column;gap:8px;border:1px solid #eee1cf}.wifi-row input{margin:0}.wifi-label{font-size:0.85rem;opacity:0.8;font-weight:bold}.swatches{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.swatches button{width:42px;height:42px;border-radius:12px;border:2px solid #fff;box-shadow:0 0 0 1px #ddd0bf;padding:0}input[type=color]{width:56px;height:48px;padding:2px;border-radius:12px;border:1px solid #ddd0bf;flex:none}.swatches button.sel{box-shadow:0 0 0 3px var(--accent)}.colorrow{display:flex;gap:8px;align-items:center;margin:6px 0}.colorrow input[type=text]{margin:0}button.save{font-size:1.2rem;padding:16px;border-radius:12px;border:none;background:var(--accent);color:#fff;width:100%;margin-top:28px}.err{background:#fbe2dc;border:1px solid var(--accent);color:var(--fg);padding:10px 14px;border-radius:12px;margin:10px 0}.info{background:#e6f1e3;border:1px solid #8fb58a;color:var(--fg);padding:10px 14px;border-radius:12px;margin:10px 0}a.linkbtn.cancel{background:transparent;color:#7a6a63;border:1px solid #d9cdbf;margin-top:8px}a.linkbtn{display:block;text-align:center;font-size:1.05rem;padding:14px;border-radius:12px;border:2px solid var(--accent);color:var(--accent);text-decoration:none;margin:8px 0 24px;background:#fff}</style></head><body><div class=\"logo\">日々に、ぷちを。</div><h1>ぷちのコア設定</h1><p class=\"hint\">機体 cloud-0.1.0</p><form method=\"POST\" action=\"/save_core\"><h2>きせかえの文字を貼る</h2><p class=\"hint\">きせかえアプリで「コピー」した文字を、ここに貼ってください</p><input type=\"text\" id=\"kisekaePaste\" placeholder=\"#c=fff262&e=now&m=heart...\"><input type=\"hidden\" name=\"kisekae\" id=\"kisekaeHidden\"><h2>ぷちの名前</h2><input type=\"text\" id=\"nameInput\" name=\"display_name\" maxlength=\"12\" value=\"\" placeholder=\"ひらがなでも OK\"><h2>顔の色</h2><div class=\"swatches\"><button type=\"button\" title=\"たまご\" style=\"background:#fff262\" onclick=\"setFaceColor('fff262')\"></button><button type=\"button\" title=\"ラベンダー\" style=\"background:#cab8d9\" onclick=\"setFaceColor('cab8d9')\"></button><button type=\"button\" title=\"みずいろ\" style=\"background:#00afcc\" onclick=\"setFaceColor('00afcc')\"></button><button type=\"button\" title=\"きみどり\" style=\"background:#b9c42f\" onclick=\"setFaceColor('b9c42f')\"></button><button type=\"button\" title=\"わかたけ\" style=\"background:#68be8d\" onclick=\"setFaceColor('68be8d')\"></button><button type=\"button\" title=\"そら\" style=\"background:#a0d8ef\" onclick=\"setFaceColor('a0d8ef')\"></button><button type=\"button\" title=\"なでしこ\" style=\"background:#eebbcb\" onclick=\"setFaceColor('eebbcb')\"></button><button type=\"button\" title=\"さんご\" style=\"background:#f5b1aa\" onclick=\"setFaceColor('f5b1aa')\"></button><button type=\"button\" title=\"あんず\" style=\"background:#f7b977\" onclick=\"setFaceColor('f7b977')\"></button><button type=\"button\" title=\"しろ\" style=\"background:#f0f0f0\" onclick=\"setFaceColor('f0f0f0')\"></button></div><div class=\"colorrow\"><input type=\"color\" id=\"fcPick\" value=\"#\" oninput=\"document.getElementById('fcHex').value=this.value\"><input type=\"text\" id=\"fcHex\" name=\"face_color\" value=\"#\" maxlength=\"7\" placeholder=\"#fff262\" oninput=\"faceHexInput(this)\"></div><h2>背景の色</h2><div class=\"swatches bgsw\"><button type=\"button\" title=\"きなり\" data-hex=\"f3ead8\" style=\"background:#f3ead8\" onclick=\"setBgColor('f3ead8')\"></button><button type=\"button\" title=\"くりーむ\" data-hex=\"fbf4e8\" style=\"background:#fbf4e8\" onclick=\"setBgColor('fbf4e8')\"></button><button type=\"button\" title=\"こん\" data-hex=\"223a70\" style=\"background:#223a70\" onclick=\"setBgColor('223a70')\"></button><button type=\"button\" title=\"くろ\" data-hex=\"2b2b2b\" style=\"background:#2b2b2b\" onclick=\"setBgColor('2b2b2b')\"></button><button type=\"button\" title=\"しろ\" data-hex=\"ffffff\" style=\"background:#ffffff\" onclick=\"setBgColor('ffffff')\"></button><button type=\"button\" title=\"\" data-hex=\"\" style=\"background:#\" class=\"sel\" onclick=\"setBgColor('')\"></button></div><input type=\"hidden\" id=\"bgHex\" name=\"bg_color\" value=\"\"><button type=\"submit\" class=\"save\">保存する</button></form><a class=\"linkbtn\" href=\"/\">← 戻る</a><script>function setFaceColor(hex){var v='#'+hex;document.getElementById('fcPick').value=v;document.getElementById('fcHex').value=v;}function setBgColor(hex){document.getElementById('bgHex').value=hex;var bs=document.querySelectorAll('.bgsw button');for(var i=0;i<bs.length;i++){bs[i].className=(bs[i].getAttribute('data-hex')===hex)?'sel':'';}}function hexInputTo(el,pickId){var v=el.value.trim();if(v&&v[0]!=='#')v='#'+v;if(/^#[0-9a-fA-F]{6}$/.test(v)){document.getElementById(pickId).value=v;}}function faceHexInput(el){var v=el.value.trim();if(v&&v[0]!=='#')v='#'+v;if(/^#[0-9a-fA-F]{6}$/.test(v)){document.getElementById('fcPick').value=v;}}function parseKisekae(v){document.getElementById('kisekaeHidden').value=v;var i=v.indexOf('#');var frag=(i>=0)?v.substring(i+1):v;try{var p=new URLSearchParams(frag);var n=p.get('n');var c=p.get('c');if(n){document.getElementById('nameInput').value=n;}if(c){var hex=(c[0]==='#')?c:('#'+c);if(/^#[0-9a-fA-F]{6}$/.test(hex)){document.getElementById('fcPick').value=hex;document.getElementById('fcHex').value=hex;}}}catch(e){}}document.getElementById('kisekaePaste').addEventListener('input',function(){parseKisekae(this.value);});</script></body></html>", SLEEP_JPG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgEBXgFeAAD//gAmUGFpbnQgVG9vbCAtU0FJLSBKUEVHIEVuY29kZXIgdjEuMDAA/9sAhAAHBgYGBgYICAgICgoKCgoODg4ODg4RERERERERFRUVFRUVFRUaGhoaGhoaHh4eHh4eJCQkJCQqKioqMDAwNzc5ARQPDw8PDxYWFhYeHh4eHicnJycnJzExMTExMTE8PDw8PDw8PElJSUlJSUlYWFhYWFhnZ2dnZ3h4eHiKioqdnaT/wAARCADwAUADAREAAhEBAxEB/8QBogAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoLEAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+foBAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKCxEAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6RoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAjlnigXdI4UUAZsutwKcRozfpQBRk1i7c/JtQfTNAG3Y3BurZZCOehoAs0AFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAhIAyTQBnXeqwwfLHiRvbpQA/T743ituXDL6UAX6AEJCgk9BQBz91q8zsVhO1fXuaAM5UnuX4DO350AaUGizOAZXCew5NAFS/tUtJlRWJyueaANrR/+PIf7xoA0aACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgDO1HUDaBVQZdh+VAGBLc3Fwfndm9qAGSQSxKpdCu7pmgDa0NRsmPuKANmgBroJEZT0IxQBkw6LGku6R96jtigCxfXI0+FREigt044oAxJNRvJRgykD24oAqHJ60AbGirP5jHny8fhmgDeoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKAKd3YQ3hUsSCO4oAkt7O3tlARBn1PWgDH1tiZ419E/rQBc0UBbVj6uf5UAalABQAUAQz28Nym2RcigCKPT7OPGIlP15oA5/UZDJdyeinaPwoA6DT4vJs4h6jP50AW6ACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgDG1ie5iaNUYqpHUetAGR9ruv+e0n/AH0aAIWZmOSSTQA4RykZCtj6UAbGjJcrIxIYR47+tAG5QAUAFAB2oA4uVzJI7H+JiaANddb2IFEHQY+9/wDWoAvWF/8AbNwK7WWgC/QAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAhVWGCAaAG+TF/zzX8hQByd2266mP+2aAOptkEdvEvogoAbc3kFshLMM/3e9AFex1Fbx2TZtIGaANCgAoAKAMSTRC0hKygKT6UAPGhxd5W/KgC/a2cNopCZyepNAFmgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAr3kpgtZHHULxQByaFd6l84zzQBqXWsPIuyAFB696AM6KCe5b5ELHuaAN/TdPa0JdyC5GOO1AGlQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUARzRJPE0bdGFAGM2hvn5Zhj3FAD4dEUNmWTI9BQBrxxpEgVFAA9KAH0AFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAISAMk0ARrNC5wrqT7GgCWgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgCOSWOFC7kACgDmb6+e7kOCRGOgoApqxUgg4IoA66zkaW2idupWgCxQAUAFABQAUAFABQAUAFABQAUAFABQBUvbk2tuzgZPQUAc//aN7u3eaf6UAa1jqi3BCS4V+3oaANWgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgCKWaKBN0jBRQBzV9etdycZCL0FAFKgDYsdKEqCSYkA9FoA3VUKoAGAKAHUAFABQAUAFABQAUAFABQAUAFABQAUAVrqBbmJoycZ70Aczc2k9q2JBwehHSgCvQBt2OrbQsc/4N/jQBtAhgCDkGgB1ABQAUAFABQAUAFABQAUAFABQAUAFABQAUAISAMk0AZ91qkECkIRI3oKAOfnuJbl98jZP8qAIaANzTNOKnzZl/wB1T/OgDboAKACgAoAKACgAoAM4oAj82LP31/OgCQUAFABQAUAFABQAxuDmgBHjSZCjgEGgDmrzT5bUlgN0fr/jQBRoAuWuoT2vCncn900AdFa3cV3HuQ89x6UAWaACgAoAKACgAoAKACgAoAKACgAoAKACgDl9SuJJbl1JO1DgCgChQBNBby3L7I1yf5UAdBZ6ZDbYZvnf19PpQBo0AFABQAUAFABQAUARzTJBGXboKAOduL2a4blsL6CgCrQBatr2a3Yc5X0NAHRQzJPGHXoaAJKACgAoAKAEIyKAGjIOKAHYBGDQBjXmkBiXgwP9n/CgDEdHjYqwII7UASW88lvKroe/50AdgDkUALQAUAFABQAUAFABQAUAFABQAUAFABQBmXmlpcyeYrbGPWgCKHRIlOZJC3sOKANOKGKBdsahRQBLQAUAFABQAUAFABQAUAY2ryHdHH2xmgDIoAKACgDY0iQ5kj7daANigAoAKACgAoAQgEUAJyOtADqAKd3Yw3Yy3DDowoAqW+jxxSB3ffjoMUAa9ABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFABQAUAFAGLrEZ3xv2xigDJoAKACgDX0iM7pJO2MUAbNABQAUAFABQAUAFABigAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgCGeBLiIo3egDnbi0mt2ww49aAK9AFi3tJrlsKMDuaAOjghWCIIvagCWgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKAEIBGDQBF9ngznyk/IUASgADAoAWgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKAKVzfLDwvJoAzH1Kcnh8UAPh1WUH5iGFAGvBPHOuVNAE1ABQAUAQyXEMX3nAoArPqlmn8efoKAETVrNjjcR9RQBdSRJF3IwYe1AD6ACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKAILmQxwkjrQBzE8xdjQBXJJoASgCWOeaL7jsPoaAJRf3g/5bN+dAEg1S9C435/CgCu9xLIcsxNAEe5j3oAbQAUAWba6ltpAyH6igDqYJlniWRehoAloAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgCOaFZk2mgDKk0VT9yT86AKj6NdL0Kt+NAFdtPu06pQBA0MqfeQigCOgAoAUAnoKAJo7S5l+7G1AF2PR7hvvMFoAtJo0Q+8xNAEo0y3X+GgC5bQrCpVRgUAWKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAMUANKIeoFAETWdq/WFPyoAQWVovSFPyoAlWGJeiAfhQA/AoAMUAGKAExQAAYoAWgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgAoAKACgD/2Q==";
+
+// ---------- 状態 ----------
+const S = {
+  mode:"boot", bootAt:0, holdStart:0, holdDone:false, setupAt:0, savedAt:0,
+  name:"ぷちまる", faceHex:"034f45", bgHex:"ffffff", tapColor:"", kisekae:"",
+  volume:70, brightness:120, quiet:false, conn:0, battery:82, charging:false,
+  people:["さとおやさん","さくら","りく"], selected:0,
+  // 顔
+  eyeT:{x:0,y:0,m:0}, eye:{x:0,y:0,m:0}, returnAt:0, blinkAt:0, blinkStart:0, blinking:false, wink:{l:0,r:0}, icon:"", iconAt:0,
+  override:"", overrideUntil:0, camUntil:0, micUntil:0, senUntil:0, sleeping:false, pickupResetAt:0,
+  // パネル
+  panel:false, page:0, lastAction:0, askUntil:0, tapBurst:0, lastTap:0, lastOnVol:2,
+  // 入力
+  press:null, taps:[], lastTouchEv:0, rapid:false, rapidCount:0, rapidLast:0, setupTaps:[], sleepTaps:[],
+};
+const cv = document.getElementById("lcd"), ctx = cv.getContext("2d");
+ctx.scale(2,2);
+const now = () => performance.now();
+const F12 = '12px "Zen Maru Gothic","Noto Sans JP",sans-serif', F24 = '500 24px "Zen Maru Gothic","Noto Sans JP",sans-serif', F40 = '700 40px "Zen Maru Gothic","Noto Sans JP",sans-serif', FMONO = '10px ui-monospace,Menlo,monospace', FMONO2 = '18px ui-monospace,Menlo,monospace';
+const hex = h => "#" + h.replace("#","");
+const accentOf = h => { const c = parseInt(h,16); return `rgb(${((c>>16&255)+255)>>1},${((c>>8&255)+255)>>1},${((c&255)+255)>>1})`; };
+let sleepImg = null; if (SLEEP_JPG) { sleepImg = new Image(); sleepImg.src = SLEEP_JPG; }
+
+// ---------- ログ ----------
+const logEl = document.getElementById("log");
+function log(kind, name, value) {
+  const d = new Date(), ts = d.toTimeString().slice(0,8);
+  const line = document.createElement("div"); line.className = kind;
+  line.textContent = `${ts} ${kind === "ev" ? "event" : kind === "cmd" ? "cmd  " : "     "} ${name}${value !== undefined ? " " + JSON.stringify(value) : ""}`;
+  logEl.appendChild(line); logEl.scrollTop = logEl.scrollHeight;
+}
+function withWho(v) { if (S.people.length) v.who = {index:S.selected, label:S.people[S.selected]}; return v; }
+function sendEvent(name, v) { log("ev", name, v); }
+
+// ---------- 顔 ----------
+function look(x,y,m) { S.eyeT = {x:Math.max(-100,Math.min(100,x)), y:Math.max(-100,Math.min(100,y)), m:Math.max(0,Math.min(100,m))}; S.returnAt = now() + T.lookReturn; }
+function blink(l,r) { const t = now(); if (l) S.wink.l = t + T.winkMs; if (r) S.wink.r = t + T.winkMs; }
+function icon(n) { S.icon = n; S.iconAt = now(); }
+function flashColor(h, ms) { S.override = h; S.overrideUntil = now() + ms; }
+function scheduleBlink() { S.blinkAt = now() + T.blinkMin + Math.random() * (T.blinkMax - T.blinkMin); }
+function ellipse(cx,cy,rx,ry,rot,color) { ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot*Math.PI/180); ctx.scale(1, ry/rx); ctx.beginPath(); ctx.arc(0,0,rx,0,Math.PI*2); ctx.fillStyle = color; ctx.fill(); ctx.restore(); }
+function drawFace(t) {
+  const smooth = 0.15;
+  S.eye.x += (S.eyeT.x - S.eye.x) * smooth; S.eye.y += (S.eyeT.y - S.eye.y) * smooth; S.eye.m += (S.eyeT.m - S.eye.m) * smooth;
+  if (S.returnAt && t > S.returnAt) { S.eyeT = {x:0,y:0,m:0}; S.returnAt = 0; }
+  if (S.pickupResetAt && t > S.pickupResetAt) { S.pickupResetAt = 0; look(0,0,0); }
+  const tt = t * 0.002, sx = S.quiet ? 0 : T.swayX, sy = S.quiet ? 0 : T.swayY;
+  const cx = 160 + Math.round(Math.sin(tt) * sx), cy = 120 + Math.round(Math.cos(tt*0.7) * sy);
+  const epx = Math.round(S.eye.x * 30 / 100), epy = Math.round(S.eye.y * 20 / 100), ms = 20 + Math.round(S.eye.m * 20 / 100);
+  ctx.fillStyle = hex(S.bgHex); ctx.fillRect(0,0,W,H);
+  const col = (S.override && t < S.overrideUntil) ? hex(S.override) : hex(S.faceHex);
+  // 自動まばたき
+  if (!S.blinking && t >= S.blinkAt) { S.blinking = true; S.blinkStart = t; }
+  let lh = 32, rh = 32;
+  if (S.blinking) { const p = (t - S.blinkStart) / T.blinkClose; if (p >= 1) { S.blinking = false; scheduleBlink(); } else { const tri = p < .5 ? p*2 : (1-p)*2; lh = rh = Math.max(3, Math.round(32 - tri*29)); } }
+  if (t < S.wink.l) lh = 3; if (t < S.wink.r) rh = 3;
+  ellipse(cx + epx*0.8, cy + 1 + epy*0.8, 14, 6, 0, col);
+  ellipse(cx - 85 + epx, cy - 30 + epy, 22, lh, 20, col);
+  ellipse(cx + 85 + epx, cy - 30 + epy, 22, rh, -20, col);
+  const my = cy + 45 + epy;
+  ellipse(cx - 18 + epx, my, ms, ms, 0, col); ellipse(cx + 18 + epx, my, ms, ms, 0, col);
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx-30+epx, my+10); ctx.lineTo(cx+30+epx, my+10); ctx.lineTo(cx+epx, my+45); ctx.closePath(); ctx.fill();
+  // icon
+  if (S.icon && t - S.iconAt > T.iconMs) S.icon = "";
+  const ti = t * 0.005;
+  if (S.icon === "love") { const hx = 260, hy = 40 + Math.sin(ti)*5; ctx.fillStyle = "#f00"; ctx.beginPath(); ctx.arc(hx-6,hy,8,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(hx+6,hy,8,0,7); ctx.fill(); ctx.beginPath(); ctx.moveTo(hx-14,hy); ctx.lineTo(hx+14,hy); ctx.lineTo(hx,hy+20); ctx.closePath(); ctx.fill(); }
+  if (S.icon === "cry") { const drop = Math.abs(Math.sin(ti))*10; for (const x of [cx-85+epx, cx+85+epx]) ellipse(x, cy-5+epy+drop, 5, 10, 0, "#00f"); }
+  // 右上の文字
+  const labels = []; if (S.conn === 2) labels.push("NO WIFI"); else if (S.conn === 1) labels.push("NO CLOUD");
+  if (t < S.camUntil) labels.push("CAM"); if (t < S.micUntil) labels.push("MIC"); if (t < S.senUntil) labels.push("SEN");
+  if (labels.length) { ctx.font = F12; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillStyle = "#808080"; ctx.fillText(labels.join("  "), W-6, 6); }
+}
+
+// ---------- パネル ----------
+function hasWho() { return S.people.length > 0; }
+function nearest(v, st) { let b = 0, d = Math.abs(v-st[0]); for (let i=1;i<3;i++){ const dd=Math.abs(v-st[i]); if (dd<d){d=dd;b=i;} } return b; }
+function openPanel(page) { if (S.sleeping) return; S.panel = true; S.page = page; S.askUntil = 0; S.tapBurst = 0; S.lastAction = now(); }
+function closePanel() { S.panel = false; }
+function drawPanel(t) {
+  const bg = "#101418", tx = "#f0ece4", ac = accentOf(S.faceHex);
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H); ctx.fillStyle = tx; ctx.textBaseline = "top";
+  const rr = (x,y,w,h,r,fill) => { ctx.beginPath(); ctx.roundRect(x,y,w,h,r); if (fill) { ctx.fillStyle = fill; ctx.fill(); } else { ctx.strokeStyle = ac; ctx.lineWidth = 1; ctx.stroke(); } };
+  if (S.page === 1) {
+    ctx.font = F24; ctx.textAlign = "left"; ctx.fillText("いま だれ", 12, 8);
+    S.people.slice(0,6).forEach((p,i) => { const x = 8 + (i%2)*156, y = 44 + Math.floor(i/2)*56;
+      if (i === S.selected) { rr(x,y,148,48,10,ac); ctx.fillStyle = bg; } else { rr(x,y,148,48,10,null); ctx.fillStyle = tx; }
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(p, x+74, y+24); ctx.textBaseline = "top"; });
+    return;
+  }
+  if (S.page === 2) {
+    ctx.font = F24; ctx.textAlign = "left"; ctx.fillText("ぷちに おねがい", 12, 8);
+    const labels = ["みてみて","かんじて"], subs = [["しゃしんを","とって みてね"],["センサーで","かんじてね"]];
+    for (let i=0;i<2;i++) { const x = 8 + i*156; rr(x,56,148,72,12,null); ctx.fillStyle = tx; ctx.font = F24; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(labels[i], x+74, 92); ctx.textBaseline = "top";
+      ctx.font = F12; ctx.fillText(subs[i][0], x+74, 136); ctx.fillText(subs[i][1], x+74, 152); }
+    ctx.font = F12; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText("3かい タップで もどる", 160, H-6); ctx.textBaseline = "top";
+    return;
+  }
+  const d = new Date(); const hh = String(d.getHours()).padStart(2,"0"), mm = String(d.getMinutes()).padStart(2,"0");
+  ctx.font = F40; ctx.textAlign = "center"; ctx.fillText(`${hh}:${mm}`, 160, 4);
+  ctx.font = F24; ctx.fillText(`${d.getMonth()+1}/${d.getDate()} (${"日月火水木金土"[d.getDay()]})`, 130, 60);
+  // 電池
+  const bx = 206, by = 64; ctx.strokeStyle = "#555"; ctx.lineWidth = 1; ctx.strokeRect(bx+.5,by+.5,22,12); ctx.fillStyle = "#555"; ctx.fillRect(bx+22,by+3,2,6);
+  const fw = Math.round(S.battery*18/100); if (fw>0) { ctx.fillStyle = S.battery <= 20 ? "#f00" : tx; ctx.fillRect(bx+2,by+2,fw,8); }
+  if (S.charging) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.moveTo(bx+9,by); ctx.lineTo(bx+14,by+6); ctx.lineTo(bx+10,by+6); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(bx+12,by+6); ctx.lineTo(bx+8,by+12); ctx.lineTo(bx+13,by+6); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = tx; ctx.textAlign = "left"; ctx.fillText(`${S.battery}%`, 232, 60);
+  const vi = nearest(S.volume, VOL), bi = nearest(S.brightness, BR);
+  const labels = ["おと","ひかり","ながもち"], states = [VOL_L[vi], BR_L[bi], S.quiet ? "ON" : "OFF"];
+  ctx.textAlign = "center";
+  for (let i=0;i<3;i++) { const x = Math.floor(W*i/3), w = Math.floor(W/3); rr(x+4,108,w-8,70,8,null); ctx.fillStyle = tx; ctx.fillText(labels[i], x+w/2, 124); ctx.fillText(states[i], x+w/2, 186); }
+}
+function panelTouchEnd(p, lx, ly) {
+  const t = now(), dx = lx - p.x, dy = ly - p.y;
+  const burst = () => { if (t - S.lastTap <= 1000) S.tapBurst++; else S.tapBurst = 1; S.lastTap = t; if (S.tapBurst >= 3) { S.tapBurst = 0; closePanel(); log("sys","パネルを閉じた（3 回タップ）"); } };
+  if (Math.abs(dy) >= 60 && Math.abs(dy) > Math.abs(dx)) {
+    if (dy < 0 && S.page === 2) { closePanel(); log("sys","おねがい画面で上へ → 顔"); return; }
+    if (dy > 0 && S.page === 0) { closePanel(); log("sys","おと画面で下へ → 顔"); return; }
+    let next = S.page;
+    if (dy < 0) next = S.page === 0 ? (hasWho() ? 1 : 2) : 2; else next = S.page === 2 ? (hasWho() ? 1 : 0) : 0;
+    if (next !== S.page) { S.page = next; S.tapBurst = 0; S.lastAction = t; }
+    return;
+  }
+  if (hasWho() && S.page === 0 && dx <= -60) { S.page = 1; S.lastAction = t; return; }
+  if (S.page === 1 && dx >= 60) { S.page = 0; S.lastAction = t; return; }
+  if (S.page === 2) {
+    for (let i=0;i<2;i++) { const x = 8 + i*156; if (p.x >= x && p.x < x+148 && p.y >= 56 && p.y < 128) { const what = i ? "feel" : "look"; closePanel(); sendEvent("ask", withWho({what}));
+      // クラウド側が受けて動く様子(見本): look → 写真(CAM)、feel → センサー(SEN)
+      setTimeout(() => { if (what === "look") { S.camUntil = now() + 3000; log("cmd","snapshot"); } else { S.senUntil = now() + 1500; log("cmd","sensors"); } }, 900); return; } }
+    burst(); return;
+  }
+  if (S.page === 1) {
+    for (let i=0;i<Math.min(6,S.people.length);i++) { const x = 8 + (i%2)*156, y = 44 + Math.floor(i/2)*56; if (p.x >= x && p.x < x+148 && p.y >= y && p.y < y+48) { S.selected = i; S.page = 0; S.lastAction = t; sendEvent("who", {index:i, label:S.people[i], source:"panel"}); return; } }
+    burst(); return;
+  }
+  if (p.y >= 108 && p.y < 178) {
+    S.tapBurst = 0; const col = Math.max(0, Math.min(2, Math.floor(p.x*3/W)));
+    if (col === 0) { const idx = nearest(S.volume, VOL); if (idx !== 0) { S.lastOnVol = idx; S.volume = 0; } else { const n = S.lastOnVol === 1 ? 2 : 1; S.lastOnVol = n; S.volume = VOL[n]; } }
+    else if (col === 1) { const idx = nearest(S.brightness, BR); S.brightness = BR[(idx+1)%3]; }
+    else { S.quiet = !S.quiet; }
+    S.lastAction = t; sendEvent("status", {volume:S.volume, brightness:S.brightness, power_save:S.quiet});
+  } else burst();
+}
+
+// ---------- 起動・設定モード ----------
+let qrCanvas = null;
+function makeQr() {
+  try { const div = document.createElement("div"); new QRCode(div, {text:"WIFI:T:WPA;S:petit-setup;P:petitpetit;;", width:164, height:164, correctLevel:QRCode.CorrectLevel.M}); qrCanvas = div.querySelector("canvas"); } catch (e) { qrCanvas = null; }
+}
+function drawBoot(t) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+  ctx.font = FMONO; ctx.fillStyle = "#0f0"; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("Booting... " + FW, 4, 4);
+  ctx.fillStyle = "#ff0";
+  if (S.mode === "hold") {
+    const holdMs = +document.getElementById("holdSel").value;
+    const remain = Math.ceil((holdMs - (t - S.holdStart)) / 1000);
+    ctx.font = FMONO2; ctx.textAlign = "center"; ctx.fillText(String(Math.max(0,remain)), 160, 200);
+    if (t - S.holdStart >= holdMs) { S.mode = "release"; }
+  } else if (S.mode === "release") {
+    ctx.font = F24; ctx.fillText("ボタンを はなしてね", 6, 208);
+  } else {
+    ctx.font = F24; ctx.fillText("長押しで設定画面", 6, 208);
+  }
+}
+function drawSetup(t) {
+  ctx.fillStyle = "#FBF4E8"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "#fff"; ctx.fillRect(2,6,176,176);
+  if (qrCanvas) ctx.drawImage(qrCanvas, 8, 12, 164, 164); else { ctx.fillStyle = "#000"; for (let y=0;y<10;y++) for (let x=0;x<10;x++) if ((x*7+y*3)%4<2) ctx.fillRect(8+x*16.4, 12+y*16.4, 16.4, 16.4); }
+  ctx.fillStyle = "#3A322D"; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.font = F24;
+  let y = 16; for (const s of ["スマホの","カメラで","読みとり"]) { ctx.fillText(s, 186, y); y += 28; } y += 8;
+  for (const s of ["つないだら","開いてね"]) { ctx.fillText(s, 186, y); y += 28; }
+  ctx.font = '13px ui-monospace,Menlo,monospace'; ctx.fillText("192.168.4.1", 186, y + 2);
+  ctx.font = F24; ctx.textAlign = "center"; ctx.fillText("5分で戻る・3回タップで戻る", 160, 212);
+}
+function drawSaved() { ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H); ctx.fillStyle = "#000"; ctx.font = F24; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("保存したよ。再起動します", 160, 100); }
+function drawSleep() { ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H); if (sleepImg && sleepImg.complete) ctx.drawImage(sleepImg, 0, 0, W, H); else { ctx.fillStyle = "#bcbcbc"; ctx.font = F40; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("zzz", 160, 120); } }
+
+function reboot(reason) {
+  S.mode = "boot"; S.bootAt = now(); S.holdDone = false; S.panel = false; S.sleeping = false; S.press = null; S.taps = []; S.setupTaps = [];
+  setPhone(false); log("sys", "起動" + (reason ? "（" + reason + "）" : ""));
+  setTimeout(() => { if (S.mode === "boot") { toFace(); sendEvent("boot", {fw:FW, name:S.name, color:S.faceHex, bg_color:S.bgHex}); } }, 2000);
+}
+function toFace() { S.mode = "face"; setPhone(false); scheduleBlink(); }
+function enterSetup() { S.mode = "setup"; S.setupAt = now(); S.setupTaps = []; makeQr(); setPhone(true, "main"); log("sys", "設定モード（SoftAP + http://192.168.4.1/）"); }
+function leaveSetup(saved, what) {
+  if (saved) { S.mode = "saved"; S.savedAt = now(); setPhone(false); log("sys", "保存 → 再起動（" + what + "）"); setTimeout(() => reboot("保存のあと"), 1200); }
+  else { toFace(); log("sys", "設定モードをやめて、いつもの顔へ（" + what + "）"); }
+}
+
+// ---------- スマホ(設定ページ) ----------
+const phone = document.getElementById("phone"), phoneWrap = document.getElementById("phoneWrap");
+function setPhone(show, page) { phoneWrap.classList.toggle("show", show); if (show) loadPage(page || "main"); }
+function loadPage(page) {
+  phone.srcdoc = page === "core" ? CORE_PAGE : MAIN_PAGE;
+  phone.onload = () => {
+    const d = phone.contentDocument; if (!d) return;
+    // いまの値を入れる(機体が g_formCfg から入れるぶん)
+    const q = s => d.querySelector(s);
+    if (page === "main") { S.people.forEach((p,i) => { const el = q(`[name=person${i+1}]`); if (el) el.value = p; }); }
+    else {
+      const n = q("[name=display_name]"); if (n) n.value = S.name;
+      const fc = q("[name=face_color]"); if (fc) fc.value = "#" + S.faceHex; const fp = q("#fcPick"); if (fp) fp.value = "#" + S.faceHex;
+      const bh = q("#bgHex"); if (bh) bh.value = S.bgHex;
+      d.querySelectorAll("[data-hex]").forEach(b => b.classList.toggle("sel", b.dataset.hex === S.bgHex));
+      const ks = q("[name=kisekae]"); if (ks) ks.value = S.kisekae;
+    }
+    d.querySelectorAll("form").forEach(f => f.addEventListener("submit", ev => {
+      ev.preventDefault(); const fd = new FormData(f); const action = f.getAttribute("action") || "";
+      if (action.includes("save_core")) {
+        const nm = (fd.get("display_name") || "").trim(); if (nm) S.name = nm.slice(0,12);
+        const fc = (fd.get("face_color") || "").replace("#",""); if (/^[0-9a-fA-F]{6}$/.test(fc)) S.faceHex = fc.toLowerCase();
+        const bg = (fd.get("bg_color") || "").replace("#",""); if (BGS.some(b => b[0] === bg)) S.bgHex = bg;
+        S.kisekae = fd.get("kisekae") || S.kisekae;
+        leaveSetup(true, "ぷちのコア設定を保存");
+      } else {
+        const ppl = []; for (let i=1;i<=6;i++) { const v = (fd.get(`person${i}`) || "").trim(); if (v) ppl.push(v.slice(0,6)); }
+        S.people = ppl; S.selected = 0; document.getElementById("peopleTa").value = ppl.join("\n");
+        leaveSetup(true, "Wi-Fi とだれを保存");
+      }
+    }));
+    d.querySelectorAll("a[href]").forEach(a => a.addEventListener("click", ev => {
+      const href = a.getAttribute("href"); if (!href.startsWith("/")) return; ev.preventDefault();
+      if (href === "/core") loadPage("core"); else if (href === "/cancel") leaveSetup(false, "保存せずに戻る"); else loadPage("main");
+    }));
+    d.querySelectorAll("button[form]").forEach(b => b.addEventListener("click", ev => { ev.preventDefault(); const f = d.getElementById(b.getAttribute("form")); if (f) f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event("submit", {cancelable:true})); }));
+  };
+}
+
+// ---------- 入力(input.cpp の判定) ----------
+function pos(ev) { const r = cv.getBoundingClientRect(); return {x:Math.round((ev.clientX - r.left) * W / r.width), y:Math.round((ev.clientY - r.top) * H / r.height)}; }
+cv.addEventListener("pointerdown", ev => { cv.setPointerCapture(ev.pointerId); const p = pos(ev); S.press = {x:p.x, y:p.y, t:now(), lx:p.x, ly:p.y};
+  if (S.mode === "boot" && !S.holdDone) { S.mode = "hold"; S.holdStart = now(); } });
+cv.addEventListener("pointermove", ev => { if (!S.press) return; const p = pos(ev); S.press.lx = p.x; S.press.ly = p.y; });
+cv.addEventListener("pointerup", ev => {
+  if (!S.press) return; const p = S.press; S.press = null; const t = now(), dur = t - p.t, dx = p.lx - p.x, dy = p.ly - p.y, adx = Math.abs(dx), ady = Math.abs(dy);
+  if (S.mode === "hold") { S.mode = "boot"; log("sys", "長押しをやめた → ふつうに起動"); return; }
+  if (S.mode === "release") { enterSetup(); return; }
+  if (S.mode === "boot" || S.mode === "saved") return;
+  if (S.mode === "setup") { S.setupTaps.push(t); S.setupTaps = S.setupTaps.filter(x => t - x <= 1000); if (S.setupTaps.length >= 3) leaveSetup(false, "3 回タップ"); return; }
+  if (S.sleeping) { S.sleepTaps.push(t); S.sleepTaps = S.sleepTaps.filter(x => t - x <= 1000); if (S.sleepTaps.length >= 3) { S.sleeping = false; S.sleepTaps = []; sendEvent("wake", "touch"); log("sys","起きた（3 回タップ）"); } return; }
+  if (S.panel) { panelTouchEnd(p, p.lx, p.ly); return; }
+  // いつもの顔
+  if (dur <= T.tapMaxMs && adx < T.tapMovePx && ady < T.tapMovePx) {
+    S.taps.push(t); S.taps = S.taps.filter(x => t - x <= T.rapidWindow);
+    if (S.taps.length >= T.rapidN) { S.rapid = true; S.rapidCount = Math.max(S.rapidCount, S.taps.length); S.rapidLast = t; blink(1,1); return; }
+    if (S.rapid) { S.rapidCount++; S.rapidLast = t; blink(1,1); return; }
+    look(Math.round((p.x-160)*100/160), Math.round((p.y-120)*100/120), T.tapMouth);
+    if (S.tapColor) flashColor(S.tapColor, T.tapColorMs);
+    if (t - S.lastTouchEv >= T.touchGap) { S.lastTouchEv = t; sendEvent("touch", withWho({x:p.x, y:p.y})); }
+  } else if (p.y >= T.swipeUpStartY && dy <= -T.swipeDy && ady > adx) { openPanel(0); log("sys","下端から上へ → パネル"); }
+  else if (p.y <= T.swipeDownStartY && dy >= T.swipeDy && ady > adx) { openPanel(2); log("sys","上端から下へ → ぷちに おねがい"); }
+  else if (adx >= T.strokeDx && adx > ady) { icon("love"); sendEvent("stroke", withWho({dir: dx > 0 ? "right" : "left"})); }
+});
+cv.addEventListener("pointercancel", () => { S.press = null; if (S.mode === "hold") S.mode = "boot"; });
+
+// ---------- 画面の更新 ----------
+function frame() {
+  const t = now();
+  if (S.rapid && t - S.rapidLast > 1000) { sendEvent("tickle", withWho({count:S.rapidCount})); S.rapid = false; S.rapidCount = 0; S.taps = []; }
+  if (S.mode === "setup" && t - S.setupAt > T.setupTimeout) leaveSetup(false, "5 分たった");
+  if (S.panel && t - S.lastAction >= T.panelTimeout) { closePanel(); log("sys","20 秒さわらなかった → 顔"); }
+  if (S.mode === "boot" || S.mode === "hold" || S.mode === "release") drawBoot(t);
+  else if (S.mode === "setup") drawSetup(t);
+  else if (S.mode === "saved") drawSaved();
+  else if (S.sleeping) drawSleep();
+  else if (S.panel) drawPanel(t);
+  else drawFace(t);
+  // 輝度(省電力・おやすみ)
+  const br = S.sleeping ? T.sleepBrightness : S.brightness; const dim = 1 - br/255;
+  if (dim > 0.02 && S.mode === "face") { ctx.fillStyle = `rgba(0,0,0,${dim*0.85})`; ctx.fillRect(0,0,W,H); }
+  document.getElementById("modeLabel").textContent = ({boot:"起動中", hold:"長押し中", release:"離してね", setup:"設定モード", saved:"保存 → 再起動"})[S.mode] || (S.sleeping ? "おやすみ" : S.panel ? ["おと・ひかり・ながもち","いま だれ","ぷちに おねがい"][S.page] : "いつもの顔");
+  requestAnimationFrame(frame);
+}
+
+// ---------- 右側の操作 ----------
+const $ = s => document.querySelector(s);
+document.querySelectorAll("[data-look]").forEach(b => b.onclick = () => { const [x,y] = b.dataset.look.split(",").map(Number); const m = +$("#mouthR").value; log("cmd","look",{x,y,mouth:m}); look(x,y,m); });
+document.querySelectorAll("[data-blink]").forEach(b => b.onclick = () => { const [l,r] = b.dataset.blink.split(",").map(Number); log("cmd","blink",{left:!!l,right:!!r}); blink(l,r); });
+document.querySelectorAll("[data-icon]").forEach(b => b.onclick = () => { log("cmd","icon",{name:b.dataset.icon}); icon(b.dataset.icon); });
+$("#hexBtn").onclick = () => { const h = $("#hexIn").value.replace("#","").toLowerCase(); if (/^[0-9a-f]{6}$/.test(h)) { S.faceHex = h; log("cmd","color",{hex:h}); } };
+BGS.forEach(([h,n]) => { const b = document.createElement("button"); b.className = "swatch"; b.title = n; b.style.background = "#"+h; b.onclick = () => { S.bgHex = h; log("cmd","color",{bg:h}); }; $("#bgBtns").appendChild(b); });
+$("#sleepBtn").onclick = () => { log("cmd","sleep"); S.sleeping = true; S.panel = false; };
+$("#wakeBtn").onclick = () => { log("cmd","wake"); S.sleeping = false; };
+$("#snapBtn").onclick = () => { log("cmd","snapshot"); S.camUntil = now() + 3000; setTimeout(() => sendEvent("snapshot", withWho({ok:true, bytes:18234})), 1800); };
+$("#sensBtn").onclick = () => { log("cmd","sensors"); S.senUntil = now() + 1500; sendEvent("sensors", withWho({accel:{x:0.01,y:-0.02,z:0.99}, prox:12, light:340})); };
+$("#micBtn").onclick = () => { log("cmd","(将来) listen"); S.micUntil = now() + 3000; };
+VOL.concat([100]).forEach(v => { const b = document.createElement("button"); b.textContent = v; b.onclick = () => { S.volume = v; log("cmd","volume",{percent:v}); }; $("#volBtns").appendChild(b); });
+BR.forEach(v => { const b = document.createElement("button"); b.textContent = v; b.onclick = () => { S.brightness = v; log("cmd","brightness",{level:v}); }; $("#brBtns").appendChild(b); });
+$("#connSel").onchange = e => { S.conn = +e.target.value; };
+$("#battR").oninput = e => { S.battery = +e.target.value; }; $("#chgChk").onchange = e => { S.charging = e.target.checked; };
+$("#peopleBtn").onclick = () => { S.people = $("#peopleTa").value.split("\n").map(s => s.trim()).filter(Boolean).slice(0,6).map(s => s.slice(0,6)); S.selected = 0; log("cmd","people",{people:S.people}); };
+document.querySelectorAll("[data-sens]").forEach(b => b.onclick = () => { const k = b.dataset.sens; log("sys","センサー: " + k);
+  if (k === "pickup") { look(0,-40,60); S.pickupResetAt = now() + 2000; } else if (k === "shake") blink(1,1); else if (k === "putdown") look(0,0,0);
+  else if (k === "pet") { icon("love"); look(0,-30,30); } else if (k === "near") look(0,0,40);
+  setTimeout(() => sendEvent(k, withWho({raw:"(直近 2 秒の値)"})), 2000); });
+$("#rebootBtn").onclick = () => reboot("電源を入れ直した");
+$("#clearLog").onclick = () => { logEl.textContent = ""; };
+
+reboot();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
