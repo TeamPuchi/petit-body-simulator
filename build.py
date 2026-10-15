@@ -24,8 +24,8 @@ def lits(stmt):
             b += s[k].encode(); k += 1
         out.append(b.decode("utf-8"))
     return "".join(out)
-kise = [("fff262","たまご"),("cab8d9","ラベンダー"),("00afcc","みずいろ"),("b9c42f","きみどり"),("68be8d","わかたけ"),("a0d8ef","そら"),("eebbcb","なでしこ"),("f5b1aa","さんご"),("f7b977","あんず"),("f0f0f0","しろ")]
-bgs = [("f3ead8","きなり"),("fbf4e8","くりーむ"),("223a70","こん"),("2b2b2b","くろ"),("ffffff","しろ")]
+kise = [("f4a8b8","もも"),("7b4f9e","ぶどう"),("3d7cc9","あお"),("b9c42f","きみどり"),("68be8d","わかたけ"),("a0d8ef","そら"),("eebbcb","なでしこ"),("f5b1aa","さんご"),("f7b977","あんず"),("f0f0f0","しろ")]
+bgs = [("ffffff","しろ"),("f3ead8","きなり"),("fbf4e8","くりーむ")]
 TITLE = f"ぷち設定ページ Ver{ver}"
 def head(h1):
     t = lits(fnbody("String pageHead")).replace("<title></title>", "<title>"+TITLE+"</title>").replace("<h1></h1>", "<h1>"+h1+"</h1>")
