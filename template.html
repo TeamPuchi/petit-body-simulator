@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.1">
+<meta name="version" content="1.0.2">
 <title>Petit Body Simulator</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -68,6 +68,7 @@ a{color:var(--accent)}
       <li><b>下端から上へ</b>なぞる → おと・ひかり・ながもち → さらに上へ → いま だれ → さらに上へ → ぷちに おねがい → さらに上へ → 顔</li>
       <li><b>上端から下へ</b>なぞる → ぷちに おねがい（直行）。各ページで下へなぞると前へ、おと画面で下へ → 顔</li>
       <li>何もないところを <b>3 回タップ</b> → 顔に戻る。20 秒さわらないと閉じる。おやすみ中は 3 回タップで起きる</li>
+      <li>実機にはこのほかに、右上を 3 秒おさえて あいことば を入れる「おやすみモード」(cloud-0.3.0)がある。このシミュレータにはまだ無い</li>
     </ul>
   </div>
 </div>
@@ -117,14 +118,14 @@ a{color:var(--accent)}
 <script>
 // ---------- ファームの数値 ----------
 // シミュレータの版。上げるときは <meta name="version"> と両方を直す。main に入ると CI が同じ名前のタグと Release を作る
-const SIM_VERSION = "1.0.1";
+const SIM_VERSION = "1.0.2";
 const FW = "__FW__", VER = "__VER__";
 const W = 320, H = 240;
 const T = {tapMaxMs:300, tapMovePx:20, strokeDx:60, swipeUpStartY:220, swipeDy:60, swipeDownStartY:20,
   rapidWindow:1000, rapidN:3, touchGap:1000, blinkMin:2000, blinkMax:6000, blinkClose:250, winkMs:800, iconMs:3000,
   lookReturn:5000, tapMouth:30, tapColorMs:600, swayX:5, swayY:4, panelTimeout:20000, setupTimeout:300000, sleepBrightness:15};
 const VOL = [0,30,70], VOL_L = ["OFF","ちいさい","おおきい"], BR = [40,120,255], BR_L = ["くらい","ふつう","あかるい"];
-const BGS = [["f3ead8","きなり"],["fbf4e8","くりーむ"],["223a70","こん"],["2b2b2b","くろ"],["ffffff","しろ"]];
+const BGS = [["ffffff","しろ"],["f3ead8","きなり"],["fbf4e8","くりーむ"]];
 const MAIN_PAGE = __MAIN_PAGE__, CORE_PAGE = __CORE_PAGE__;
 
 // ---------- 状態 ----------
